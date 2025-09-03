@@ -1,49 +1,47 @@
-'use client';
+// app/page.tsx
+"use client";
 
-import { useEffect, useState } from 'react';
-import HeroCarousel from './components/HeroCarousel';
+import { useEffect, useState } from "react";
+import HeroCarousel, { type Slide } from "./components/HeroCarousel";
+import InfiniteStrip from "./components/InfiniteStrip";
+import Lightbox from "./components/Lightbox";
 
 export default function FarmstaySite() {
-  const airbnbListingId = '35318624';
+  const airbnbListingId = "35318624";
 
-  // ---- Hero slides (use .jpg/.jpeg files) ----
-  // Put your images under /public/images/hero (they already are).
-  // Avoid .HEIC in the carousel; browsers don’t render them.
-  const heroSlides = [
-    {
-      src: '/images/hero/Exterior backyard summer time.jpg',
-      alt: 'Barn and pergola on a sunny day',
-    },
-    {
-      src: '/images/hero/Exterior backyard.jpeg',
-      alt: 'Backyard and white fence',
-    },
-    {
-      src: '/images/hero/barn small entrance.jpg',
-      alt: 'Small barn entrance with welcome mat',
-    },
-    {
-      src: '/images/hero/barn south side.jpg',
-      alt: 'Barn south side with mountain backdrop',
-    },
-    {
-      src: '/images/hero/Exterior main entrance.jpeg',
-      alt: 'Main entrance of the barn',
-    },
-  ];
+  // ------- Load hero slides automatically -------
+  const [heroSlides, setHeroSlides] = useState<Slide[]>([]);
+  useEffect(() => {
+    fetch("/api/hero")
+      .then((r) => r.json())
+      .then((d) => setHeroSlides(d.images || []))
+      .catch(() => setHeroSlides([]));
+  }, []);
+  const beltImages = heroSlides.map((s) => s.src);
 
-  // ---- Utils ----
-  const pad = (n: number) => String(n).padStart(2, '0');
+  // ------- Lightbox for belt -------
+  const [lbOpen, setLbOpen] = useState(false);
+  const [lbIndex, setLbIndex] = useState(0);
+  const openLb = (i: number) => {
+    setLbIndex(i);
+    setLbOpen(true);
+  };
+  const nextLb = () => setLbIndex((i) => (i + 1) % beltImages.length);
+  const prevLb = () =>
+    setLbIndex((i) => (i - 1 + beltImages.length) % beltImages.length);
+
+  // ------- Utils -------
+  const pad = (n: number) => String(n).padStart(2, "0");
   const ymd = (d: Date) =>
     `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const parse = (s: string) => {
-    const [Y, M, D] = s.split('-').map((x) => parseInt(x, 10));
+    const [Y, M, D] = s.split("-").map((x) => parseInt(x, 10));
     return new Date(Y, M - 1, D);
   };
   const betweenInclusive = (d: Date, a: Date, b: Date) =>
     d.getTime() >= a.getTime() && d.getTime() <= b.getTime();
 
-  // ---- Airbnb URL helper (pure) ----
+  // ------- Airbnb URL helper -------
   const buildAirbnbUrlWith = (s?: string, e?: string, g?: number): string => {
     const base = `https://www.airbnb.com/rooms/${airbnbListingId}`;
     if (!s || !e) return base;
@@ -51,31 +49,31 @@ export default function FarmstaySite() {
       check_in: s,
       check_out: e,
       adults: String(g ?? 1),
-      children: '0',
-      infants: '0',
-      pets: '0',
+      children: "0",
+      infants: "0",
+      pets: "0",
     }).toString();
     return `${base}?${qs}`;
   };
 
-  // ---- Availability (placeholder ranges; can be replaced with Airbnb iCal) ----
+  // ------- Availability (demo) -------
   const bookedRanges: Array<{ start: string; end: string }> = [
-    { start: '2025-09-18', end: '2025-09-20' },
-    { start: '2025-10-05', end: '2025-10-08' },
+    { start: "2025-09-18", end: "2025-09-20" },
+    { start: "2025-10-05", end: "2025-10-08" },
   ];
   const isBooked = (dateStr: string) => {
     const d = parse(dateStr);
     return bookedRanges.some((r) =>
-      betweenInclusive(d, parse(r.start), parse(r.end)),
+      betweenInclusive(d, parse(r.start), parse(r.end))
     );
   };
 
-  // ---- Calendar state ----
+  // ------- Calendar state -------
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth()); // 0-11
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [guests, setGuests] = useState(2);
 
   const nights =
@@ -84,8 +82,8 @@ export default function FarmstaySite() {
           0,
           Math.ceil(
             (parse(endDate).getTime() - parse(startDate).getTime()) /
-              (1000 * 60 * 60 * 24),
-          ),
+              (1000 * 60 * 60 * 24)
+          )
         )
       : 0;
   const nightlyRate = 165;
@@ -105,7 +103,7 @@ export default function FarmstaySite() {
 
     if (!startDate || (startDate && endDate)) {
       setStartDate(dStr);
-      setEndDate('');
+      setEndDate("");
       return;
     }
     if (parse(dStr).getTime() < parse(startDate).getTime()) {
@@ -118,41 +116,25 @@ export default function FarmstaySite() {
 
   const buildAirbnbUrl = () => buildAirbnbUrlWith(startDate, endDate, guests);
 
-  // ---- Survey + QR ----
+  // ------- Survey + QR -------
   const [surveyOpen, setSurveyOpen] = useState(false);
   const [surveyDone, setSurveyDone] = useState(false);
   const [rating, setRating] = useState(0);
-  const [comments, setComments] = useState('');
-  const [email, setEmail] = useState('');
-  const discountCode = 'FARMTHANKS10';
+  const [comments, setComments] = useState("");
+  const [email, setEmail] = useState("");
+  const discountCode = "FARMTHANKS10";
   const qrData = `https://thefamilyfarm.net/thanks?code=${discountCode}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
-    qrData,
+    qrData
   )}`;
   const submitSurvey = () => {
-    if (!rating) return alert('Please select a rating before submitting.');
+    if (!rating) return alert("Please select a rating before submitting.");
     setSurveyDone(true);
   };
 
-  // ---- Sanity tests ----
-  useEffect(() => {
-    try {
-      const base = `https://www.airbnb.com/rooms/${airbnbListingId}`;
-      console.assert(buildAirbnbUrlWith('', '', 2) === base, '[TEST] Base URL');
-      const u = buildAirbnbUrlWith('2025-09-16', '2025-09-21', 2);
-      console.assert(u.includes('check_in=2025-09-16'), '[TEST] check_in');
-      console.assert(u.includes('check_out=2025-09-21'), '[TEST] check_out');
-      console.assert(u.includes('adults=2'), '[TEST] adults=2');
-      const u2 = buildAirbnbUrlWith('2025-10-01', '2025-10-02', undefined);
-      console.assert(u2.includes('adults=1'), '[TEST] default adults=1');
-    } catch (e) {
-      console.warn('Sanity tests failed:', e);
-    }
-  }, []);
-
+  // ------- Header -------
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white text-slate-800">
-      {/* Header */}
       <header className="sticky top-0 z-30 backdrop-blur bg-white/70 border-b border-emerald-100">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -170,12 +152,25 @@ export default function FarmstaySite() {
         </div>
       </header>
 
-      {/* Hero */}
+      {/* Moving belt */}
+      <section className="w-full border-y border-emerald-100 bg-white/60 backdrop-blur">
+        <div className="max-w-6xl mx-auto px-4 py-3">
+          {beltImages.length > 0 && (
+            <InfiniteStrip
+              images={beltImages}
+              speedSeconds={38}
+              onClick={(i) => openLb(i)}
+            />
+          )}
+        </div>
+      </section>
+
+      {/* Hero section */}
       <section className="max-w-6xl mx-auto px-4 pt-10 md:pt-16">
         <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
           <div>
             <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-emerald-900">
-              A cozy farmstay in{' '}
+              A cozy farmstay in{" "}
               <span className="text-emerald-600">Enoch, Utah</span>
             </h1>
             <p className="mt-4 text-slate-600 text-lg">
@@ -199,7 +194,9 @@ export default function FarmstaySite() {
           </div>
 
           <div>
-            <HeroCarousel slides={heroSlides} interval={5000} />
+            {heroSlides.length > 0 && (
+              <HeroCarousel slides={heroSlides} interval={5000} />
+            )}
           </div>
         </div>
       </section>
@@ -219,10 +216,10 @@ export default function FarmstaySite() {
                   >
                     Prev
                   </button>
-                  <div className="text-sm font-medium w-48 text-center">
+                  <div className="w-48 text-center text-sm font-medium">
                     {new Date(viewYear, viewMonth, 1).toLocaleString(
                       undefined,
-                      { month: 'long', year: 'numeric' },
+                      { month: "long", year: "numeric" }
                     )}
                   </div>
                   <button
@@ -235,7 +232,7 @@ export default function FarmstaySite() {
               </div>
 
               <div className="mt-4 grid grid-cols-7 text-xs font-semibold text-slate-500">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
                   <div key={d} className="py-2 text-center">
                     {d}
                   </div>
@@ -246,13 +243,13 @@ export default function FarmstaySite() {
                 {Array.from({ length: firstDow(viewYear, viewMonth) }).map(
                   (_, i) => (
                     <div key={`pad-${i}`} className="h-12" />
-                  ),
+                  )
                 )}
                 {Array.from({ length: daysInMonth(viewYear, viewMonth) }).map(
                   (_, i) => {
                     const day = i + 1;
                     const dStr = `${viewYear}-${pad(viewMonth + 1)}-${pad(
-                      day,
+                      day
                     )}`;
                     const booked = isBooked(dStr);
                     const selected =
@@ -267,34 +264,34 @@ export default function FarmstaySite() {
                         key={dStr}
                         onClick={() => selectDay(viewYear, viewMonth, day)}
                         className={[
-                          'h-12 rounded-lg border text-sm flex items-center justify-center',
+                          "h-12 rounded-lg border text-sm flex items-center justify-center",
                           booked
-                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed line-through'
-                            : 'hover:bg-emerald-50',
-                          selected ? 'ring-2 ring-emerald-500' : '',
-                          inSelRange ? 'bg-emerald-100' : '',
-                        ].join(' ')}
+                            ? "bg-slate-100 text-slate-400 cursor-not-allowed line-through"
+                            : "hover:bg-emerald-50",
+                          selected ? "ring-2 ring-emerald-500" : "",
+                          inSelRange ? "bg-emerald-100" : "",
+                        ].join(" ")}
                         disabled={booked}
                       >
                         {day}
                       </button>
                     );
-                  },
+                  }
                 )}
               </div>
 
               <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
                 <span className="inline-flex items-center gap-2">
-                  <span className="w-3 h-3 rounded bg-emerald-100 border" />{' '}
+                  <span className="h-3 w-3 rounded bg-emerald-100 border" />{" "}
                   Selected range
                 </span>
                 <span className="inline-flex items-center gap-2">
-                  <span className="w-3 h-3 rounded bg-slate-100 border" />{' '}
+                  <span className="h-3 w-3 rounded bg-slate-100 border" />{" "}
                   Booked
                 </span>
               </div>
 
-              <div className="mt-6 grid sm:grid-cols-3 gap-3 items-end">
+              <div className="mt-6 grid items-end gap-3 sm:grid-cols-3">
                 <label className="flex flex-col text-sm">
                   <span className="font-medium">Start</span>
                   <input
@@ -323,42 +320,42 @@ export default function FarmstaySite() {
                     max={6}
                     value={guests}
                     onChange={(e) =>
-                      setGuests(parseInt(e.target.value || '1', 10))
+                      setGuests(parseInt(e.target.value || "1", 10))
                     }
                     className="mt-1 rounded-xl border px-3 py-2"
                   />
                 </label>
               </div>
 
-              <div className="mt-4 p-4 rounded-xl bg-emerald-50 border border-emerald-100 text-sm">
+              <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm">
                 <p className="font-medium">Estimated total</p>
                 <p className="mt-1 text-slate-700">
-                  {nights} night{nights === 1 ? '' : 's'} × ${nightlyRate}
+                  {nights} night{nights === 1 ? "" : "s"} × ${nightlyRate}
                 </p>
                 <p className="mt-2 text-2xl font-bold">
                   ${lodging.toFixed(2)}
                 </p>
               </div>
 
-              <div className="mt-4 flex gap-3 flex-wrap">
+              <div className="mt-4 flex flex-wrap gap-3">
                 <button
                   onClick={() => {
-                    setStartDate('');
-                    setEndDate('');
+                    setStartDate("");
+                    setEndDate("");
                   }}
-                  className="px-5 py-2 rounded-xl border font-semibold hover:bg-emerald-50"
+                  className="rounded-xl border px-5 py-2 font-semibold hover:bg-emerald-50"
                 >
                   Clear
                 </button>
                 <button
                   onClick={() =>
-                    window.open(buildAirbnbUrl(), '_blank', 'noopener')
+                    window.open(buildAirbnbUrl(), "_blank", "noopener")
                   }
                   disabled={!startDate || !endDate}
-                  className={`px-5 py-2 rounded-xl text-white font-semibold shadow ${
+                  className={`rounded-xl px-5 py-2 text-white font-semibold shadow ${
                     !startDate || !endDate
-                      ? 'bg-slate-300 cursor-not-allowed'
-                      : 'bg-emerald-600 hover:bg-emerald-700 active:scale-[.99]'
+                      ? "cursor-not-allowed bg-slate-300"
+                      : "bg-emerald-600 hover:bg-emerald-700 active:scale-[.99]"
                   }`}
                 >
                   Book on Airbnb
@@ -367,7 +364,7 @@ export default function FarmstaySite() {
                   href={buildAirbnbUrl()}
                   target="_blank"
                   rel="noopener"
-                  className="px-5 py-2 rounded-xl border font-semibold hover:bg-emerald-50"
+                  className="rounded-xl border px-5 py-2 font-semibold hover:bg-emerald-50"
                 >
                   View listing
                 </a>
@@ -383,13 +380,13 @@ export default function FarmstaySite() {
 
           {/* Sidebar */}
           <div className="lg:col-span-1">
-            <div className="p-6 rounded-2xl bg-white shadow-sm border border-emerald-100">
+            <div className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm">
               <h3 className="text-lg font-bold">Good to know</h3>
-              <ul className="mt-3 text-sm text-slate-700 list-disc pl-5 space-y-1">
+              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-700">
                 <li>Select start and end dates directly on the calendar.</li>
                 <li>Booked dates are grayed out.</li>
                 <li>
-                  Need help? Email{' '}
+                  Need help? Email{" "}
                   <span className="font-medium">oldbluefarm@gmail.com</span>.
                 </li>
               </ul>
@@ -399,12 +396,12 @@ export default function FarmstaySite() {
       </section>
 
       {/* Contact + Survey */}
-      <section id="contact" className="max-w-6xl mx-auto px-4 mt-12 mb-16">
-        <div className="p-6 rounded-2xl bg-white shadow-sm border border-emerald-100">
+      <section id="contact" className="max-w-6xl mx-auto mb-16 mt-12 px-4">
+        <div className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm">
           <h2 className="text-xl font-bold">Get in touch</h2>
-          <div className="mt-3 grid md:grid-cols-3 gap-4 text-sm">
+          <div className="mt-3 grid gap-4 text-sm md:grid-cols-3">
             <p>
-              <span className="font-semibold">Email:</span>{' '}
+              <span className="font-semibold">Email:</span>{" "}
               oldbluefarm@gmail.com
             </p>
             <p>
@@ -417,7 +414,7 @@ export default function FarmstaySite() {
           <div className="mt-4">
             <button
               onClick={() => setSurveyOpen(true)}
-              className="px-4 py-2 rounded-xl border font-semibold hover:bg-emerald-50"
+              className="rounded-xl border px-4 py-2 font-semibold hover:bg-emerald-50"
             >
               Open Satisfaction Survey
             </button>
@@ -425,10 +422,10 @@ export default function FarmstaySite() {
         </div>
       </section>
 
-      {/* Survey Modal */}
+      {/* Survey modal */}
       {surveyOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white border shadow-lg p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl border bg-white p-6 shadow-lg">
             <div className="flex items-start justify-between">
               <h3 className="text-lg font-bold">Participant Satisfaction Survey</h3>
               <button
@@ -448,8 +445,10 @@ export default function FarmstaySite() {
                       <button
                         key={n}
                         onClick={() => setRating(n)}
-                        className={`w-10 h-10 rounded-xl border ${
-                          rating >= n ? 'bg-emerald-100' : 'hover:bg-emerald-50'
+                        className={`h-10 w-10 rounded-xl border ${
+                          rating >= n
+                            ? "bg-emerald-100"
+                            : "hover:bg-emerald-50"
                         }`}
                       >
                         {n}
@@ -462,7 +461,7 @@ export default function FarmstaySite() {
                   <textarea
                     value={comments}
                     onChange={(e) => setComments(e.target.value)}
-                    className="mt-1 w-full rounded-xl border px-3 py-2 min-h-[80px]"
+                    className="mt-1 min-h-[80px] w-full rounded-xl border px-3 py-2"
                     placeholder="Tell us what you loved and what we can improve"
                   />
                 </label>
@@ -479,13 +478,13 @@ export default function FarmstaySite() {
                 <div className="flex gap-3">
                   <button
                     onClick={submitSurvey}
-                    className="px-4 py-2 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700"
+                    className="rounded-xl bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-700"
                   >
                     Submit
                   </button>
                   <button
                     onClick={() => setSurveyOpen(false)}
-                    className="px-4 py-2 rounded-xl border font-semibold hover:bg-emerald-50"
+                    className="rounded-xl border px-4 py-2 font-semibold hover:bg-emerald-50"
                   >
                     Cancel
                   </button>
@@ -503,7 +502,7 @@ export default function FarmstaySite() {
                 <img
                   src={qrUrl}
                   alt="QR code for discount"
-                  className="w-[240px] h-[240px] rounded-xl border mx-auto"
+                  className="mx-auto h-[240px] w-[240px] rounded-xl border"
                 />
                 <div className="text-center">
                   <p className="text-sm">Discount code:</p>
@@ -514,7 +513,7 @@ export default function FarmstaySite() {
                 <div className="text-center">
                   <button
                     onClick={() => setSurveyOpen(false)}
-                    className="mt-2 px-4 py-2 rounded-xl border font-semibold hover:bg-emerald-50"
+                    className="mt-2 rounded-xl border px-4 py-2 font-semibold hover:bg-emerald-50"
                   >
                     Close
                   </button>
@@ -524,6 +523,16 @@ export default function FarmstaySite() {
           </div>
         </div>
       )}
+
+      {/* Lightbox for the belt */}
+      <Lightbox
+        open={lbOpen}
+        images={beltImages}
+        index={lbIndex}
+        onClose={() => setLbOpen(false)}
+        onPrev={prevLb}
+        onNext={nextLb}
+      />
 
       <footer className="py-10 text-center text-xs text-slate-500">
         © {new Date().getFullYear()} The Family Farm • All rights reserved
