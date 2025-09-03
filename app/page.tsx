@@ -2,7 +2,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import HeroCarousel, { type Slide } from "./components/HeroCarousel";
 import InfiniteStrip from "./components/InfiniteStrip";
 import Lightbox from "./components/Lightbox";
 
@@ -10,6 +9,7 @@ export default function FarmstaySite() {
   const airbnbListingId = "35318624";
 
   // ------- Load hero slides automatically -------
+  type Slide = { src: string; alt?: string };
   const [heroSlides, setHeroSlides] = useState<Slide[]>([]);
   useEffect(() => {
     fetch("/api/hero")
@@ -158,7 +158,7 @@ export default function FarmstaySite() {
           {beltImages.length > 0 && (
             <InfiniteStrip
               images={beltImages}
-              speedSeconds={38}
+              speedSeconds={500}
               onClick={(i) => openLb(i)}
             />
           )}
@@ -194,9 +194,13 @@ export default function FarmstaySite() {
           </div>
 
           <div>
-            {heroSlides.length > 0 && (
-              <HeroCarousel slides={heroSlides} interval={5000} />
-            )}
+            <img
+  src="/images/hero/Exterior backyard summer time.jpg"
+  alt="Barn and pergola on a sunny day"
+  className="aspect-[4/3] w-full rounded-2xl object-cover shadow-lg"
+  loading="eager"
+/>
+
           </div>
         </div>
       </section>
