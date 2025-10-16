@@ -1,34 +1,12 @@
 // app/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import InfiniteStrip from "./components/InfiniteStrip";
-import Lightbox from "./components/Lightbox";
+import Image from "next/image";
+import { useState } from "react";
+import HeroCarousel from "./components/HeroCarousel";
 
 export default function FarmstaySite() {
   const airbnbListingId = "35318624";
-
-  // ------- Load hero slides automatically -------
-  type Slide = { src: string; alt?: string };
-  const [heroSlides, setHeroSlides] = useState<Slide[]>([]);
-  useEffect(() => {
-    fetch("/api/hero")
-      .then((r) => r.json())
-      .then((d) => setHeroSlides(d.images || []))
-      .catch(() => setHeroSlides([]));
-  }, []);
-  const beltImages = heroSlides.map((s) => s.src);
-
-  // ------- Lightbox for belt -------
-  const [lbOpen, setLbOpen] = useState(false);
-  const [lbIndex, setLbIndex] = useState(0);
-  const openLb = (i: number) => {
-    setLbIndex(i);
-    setLbOpen(true);
-  };
-  const nextLb = () => setLbIndex((i) => (i + 1) % beltImages.length);
-  const prevLb = () =>
-    setLbIndex((i) => (i - 1 + beltImages.length) % beltImages.length);
 
   // ------- Utils -------
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -116,90 +94,62 @@ export default function FarmstaySite() {
 
   const buildAirbnbUrl = () => buildAirbnbUrlWith(startDate, endDate, guests);
 
-  // ------- Survey + QR -------
-  const [surveyOpen, setSurveyOpen] = useState(false);
-  const [surveyDone, setSurveyDone] = useState(false);
-  const [rating, setRating] = useState(0);
-  const [comments, setComments] = useState("");
-  const [email, setEmail] = useState("");
-  const discountCode = "FARMTHANKS10";
-  const qrData = `https://thefamilyfarm.net/thanks?code=${discountCode}`;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
-    qrData
-  )}`;
-  const submitSurvey = () => {
-    if (!rating) return alert("Please select a rating before submitting.");
-    setSurveyDone(true);
-  };
-
-  // ------- Header -------
+  // ------- Page -------
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white text-slate-800">
+      {/* Header */}
       <header className="sticky top-0 z-30 backdrop-blur bg-white/70 border-b border-emerald-100">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-600" />
-            <span className="font-semibold text-lg">The Family Farm</span>
-          </div>
-          <nav className="hidden md:flex items-center gap-6 text-sm">
-            <a href="#book" className="hover:text-emerald-700">
-              Availability
-            </a>
-            <a href="#contact" className="hover:text-emerald-700">
-              Contact
-            </a>
-          </nav>
-        </div>
-      </header>
+  <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+    <a href="/" className="flex items-center gap-3">
+      <div className="relative w-10 h-10">
+        <Image
+          src="/W-FamilyFarms-Enoch.jpg"   // file is in /public
+          alt="The Family Farm logo"
+          fill
+          sizes="40px"
+          style={{ objectFit: "cover", borderRadius: "0.5rem" }} // set to "9999px" for a circle
+          priority
+        />
+      </div>
+      <span className="font-semibold text-lg text-emerald-900">The Family Farm</span>
+    </a>
 
-      {/* Moving belt */}
-      <section className="w-full border-y border-emerald-100 bg-white/60 backdrop-blur">
-        <div className="max-w-6xl mx-auto px-4 py-3">
-          {beltImages.length > 0 && (
-            <InfiniteStrip
-              images={beltImages}
-              speedSeconds={500}
-              onClick={(i) => openLb(i)}
-            />
-          )}
-        </div>
-      </section>
+    <nav className="hidden md:flex items-center gap-6 text-sm">
+      <a href="#book" className="hover:text-emerald-700">Availability</a>
+      <a href="/experiences" className="hover:text-emerald-700">Experiences</a>
+      <a href="#contact" className="hover:text-emerald-700">Contact</a>
+    </nav>
+  </div>
+</header>
 
-      {/* Hero section */}
-      <section className="max-w-6xl mx-auto px-4 pt-10 md:pt-16">
+
+      {/* NEW hero carousel */}
+      <HeroCarousel />
+
+      {/* Intro blurb */}
+      <section className="max-w-6xl mx-auto px-4 pt-8">
         <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
           <div>
             <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-emerald-900">
-              A cozy farmstay in{" "}
-              <span className="text-emerald-600">Enoch, Utah</span>
+              A cozy farmstay in <span className="text-emerald-600">Enoch, Utah</span>
             </h1>
             <p className="mt-4 text-slate-600 text-lg">
-              Unplug on our family hobby farm—wake to sheep bleating and
-              chickens clucking, stroll the orchard, and sleep under endless
-              skies.
+              Unplug on our family hobby farm—wake to sheep bleating and chickens clucking,
+              stroll the orchard, and sleep under endless skies.
             </p>
             <ul className="mt-4 text-slate-700 list-disc pl-5 space-y-1">
               <li>2-bedroom guesthouse · Wi-Fi · Full kitchen</li>
               <li>Private patio + firepit · Free parking</li>
-              <li>Minutes to Cedar City · Near Zion & Bryce Canyon</li>
+              <li>Minutes to Cedar City · Near Zion &amp; Bryce Canyon</li>
             </ul>
-            <div className="mt-6">
-              <button
-                onClick={() => setSurveyOpen(true)}
-                className="px-4 py-2 rounded-xl border font-semibold hover:bg-emerald-50"
-              >
-                Guest Satisfaction Survey
-              </button>
-            </div>
           </div>
-
           <div>
             <img
-  src="/images/hero/Exterior backyard summer time.jpg"
-  alt="Barn and pergola on a sunny day"
-  className="aspect-[4/3] w-full rounded-2xl object-cover shadow-lg"
-  loading="eager"
-/>
+             src="/hero/Great Room 3.jpg"   
+             alt="Cozy great room at The Family Farm"
+             className="aspect-[4/3] w-full rounded-2xl object-cover shadow-lg"
+             loading="lazy"
+            />
 
           </div>
         </div>
@@ -221,10 +171,10 @@ export default function FarmstaySite() {
                     Prev
                   </button>
                   <div className="w-48 text-center text-sm font-medium">
-                    {new Date(viewYear, viewMonth, 1).toLocaleString(
-                      undefined,
-                      { month: "long", year: "numeric" }
-                    )}
+                    {new Date(viewYear, viewMonth, 1).toLocaleString(undefined, {
+                      month: "long",
+                      year: "numeric",
+                    })}
                   </div>
                   <button
                     onClick={() => goMonth(1)}
@@ -244,54 +194,46 @@ export default function FarmstaySite() {
               </div>
 
               <div className="grid grid-cols-7 gap-1">
-                {Array.from({ length: firstDow(viewYear, viewMonth) }).map(
-                  (_, i) => (
-                    <div key={`pad-${i}`} className="h-12" />
-                  )
-                )}
-                {Array.from({ length: daysInMonth(viewYear, viewMonth) }).map(
-                  (_, i) => {
-                    const day = i + 1;
-                    const dStr = `${viewYear}-${pad(viewMonth + 1)}-${pad(
-                      day
-                    )}`;
-                    const booked = isBooked(dStr);
-                    const selected =
-                      startDate && !endDate && dStr === startDate;
-                    const inSelRange =
-                      startDate &&
-                      endDate &&
-                      parse(dStr).getTime() >= parse(startDate).getTime() &&
-                      parse(dStr).getTime() <= parse(endDate).getTime();
-                    return (
-                      <button
-                        key={dStr}
-                        onClick={() => selectDay(viewYear, viewMonth, day)}
-                        className={[
-                          "h-12 rounded-lg border text-sm flex items-center justify-center",
-                          booked
-                            ? "bg-slate-100 text-slate-400 cursor-not-allowed line-through"
-                            : "hover:bg-emerald-50",
-                          selected ? "ring-2 ring-emerald-500" : "",
-                          inSelRange ? "bg-emerald-100" : "",
-                        ].join(" ")}
-                        disabled={booked}
-                      >
-                        {day}
-                      </button>
-                    );
-                  }
-                )}
+                {Array.from({ length: firstDow(viewYear, viewMonth) }).map((_, i) => (
+                  <div key={`pad-${i}`} className="h-12" />
+                ))}
+                {Array.from({ length: daysInMonth(viewYear, viewMonth) }).map((_, i) => {
+                  const day = i + 1;
+                  const dStr = `${viewYear}-${pad(viewMonth + 1)}-${pad(day)}`;
+                  const booked = isBooked(dStr);
+                  const selected = startDate && !endDate && dStr === startDate;
+                  const inSelRange =
+                    startDate &&
+                    endDate &&
+                    parse(dStr).getTime() >= parse(startDate).getTime() &&
+                    parse(dStr).getTime() <= parse(endDate).getTime();
+
+                  return (
+                    <button
+                      key={dStr}
+                      onClick={() => selectDay(viewYear, viewMonth, day)}
+                      className={[
+                        "h-12 rounded-lg border text-sm flex items-center justify-center",
+                        booked
+                          ? "bg-slate-100 text-slate-400 cursor-not-allowed line-through"
+                          : "hover:bg-emerald-50",
+                        selected ? "ring-2 ring-emerald-500" : "",
+                        inSelRange ? "bg-emerald-100" : "",
+                      ].join(" ")}
+                      disabled={booked}
+                    >
+                      {day}
+                    </button>
+                  );
+                })}
               </div>
 
               <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
                 <span className="inline-flex items-center gap-2">
-                  <span className="h-3 w-3 rounded bg-emerald-100 border" />{" "}
-                  Selected range
+                  <span className="h-3 w-3 rounded bg-emerald-100 border" /> Selected range
                 </span>
                 <span className="inline-flex items-center gap-2">
-                  <span className="h-3 w-3 rounded bg-slate-100 border" />{" "}
-                  Booked
+                  <span className="h-3 w-3 rounded bg-slate-100 border" /> Booked
                 </span>
               </div>
 
@@ -323,9 +265,7 @@ export default function FarmstaySite() {
                     min={1}
                     max={6}
                     value={guests}
-                    onChange={(e) =>
-                      setGuests(parseInt(e.target.value || "1", 10))
-                    }
+                    onChange={(e) => setGuests(parseInt(e.target.value || "1", 10))}
                     className="mt-1 rounded-xl border px-3 py-2"
                   />
                 </label>
@@ -336,9 +276,7 @@ export default function FarmstaySite() {
                 <p className="mt-1 text-slate-700">
                   {nights} night{nights === 1 ? "" : "s"} × ${nightlyRate}
                 </p>
-                <p className="mt-2 text-2xl font-bold">
-                  ${lodging.toFixed(2)}
-                </p>
+                <p className="mt-2 text-2xl font-bold">${lodging.toFixed(2)}</p>
               </div>
 
               <div className="mt-4 flex flex-wrap gap-3">
@@ -352,9 +290,7 @@ export default function FarmstaySite() {
                   Clear
                 </button>
                 <button
-                  onClick={() =>
-                    window.open(buildAirbnbUrl(), "_blank", "noopener")
-                  }
+                  onClick={() => window.open(buildAirbnbUrl(), "_blank", "noopener")}
                   disabled={!startDate || !endDate}
                   className={`rounded-xl px-5 py-2 text-white font-semibold shadow ${
                     !startDate || !endDate
@@ -375,9 +311,8 @@ export default function FarmstaySite() {
               </div>
 
               <p className="mt-3 text-xs text-slate-500">
-                Bookings and payments for lodging are completed on Airbnb.
-                Actual availability, taxes, and fees are shown at Airbnb
-                checkout.
+                Bookings and payments for lodging are completed on Airbnb. Actual availability,
+                taxes, and fees are shown at Airbnb checkout.
               </p>
             </div>
           </div>
@@ -390,8 +325,7 @@ export default function FarmstaySite() {
                 <li>Select start and end dates directly on the calendar.</li>
                 <li>Booked dates are grayed out.</li>
                 <li>
-                  Need help? Email{" "}
-                  <span className="font-medium">oldbluefarm@gmail.com</span>.
+                  Need help? Email <span className="font-medium">oldbluefarm@gmail.com</span>.
                 </li>
               </ul>
             </div>
@@ -399,14 +333,13 @@ export default function FarmstaySite() {
         </div>
       </section>
 
-      {/* Contact + Survey */}
+      {/* Contact (no survey) */}
       <section id="contact" className="max-w-6xl mx-auto mb-16 mt-12 px-4">
         <div className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm">
           <h2 className="text-xl font-bold">Get in touch</h2>
           <div className="mt-3 grid gap-4 text-sm md:grid-cols-3">
             <p>
-              <span className="font-semibold">Email:</span>{" "}
-              oldbluefarm@gmail.com
+              <span className="font-semibold">Email:</span> oldbluefarm@gmail.com
             </p>
             <p>
               <span className="font-semibold">Phone:</span> (435) 555-0123
@@ -415,128 +348,8 @@ export default function FarmstaySite() {
               <span className="font-semibold">Location:</span> Enoch, Utah
             </p>
           </div>
-          <div className="mt-4">
-            <button
-              onClick={() => setSurveyOpen(true)}
-              className="rounded-xl border px-4 py-2 font-semibold hover:bg-emerald-50"
-            >
-              Open Satisfaction Survey
-            </button>
-          </div>
         </div>
       </section>
-
-      {/* Survey modal */}
-      {surveyOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-2xl border bg-white p-6 shadow-lg">
-            <div className="flex items-start justify-between">
-              <h3 className="text-lg font-bold">Participant Satisfaction Survey</h3>
-              <button
-                onClick={() => setSurveyOpen(false)}
-                className="text-slate-500 hover:text-slate-700"
-              >
-                ✕
-              </button>
-            </div>
-
-            {!surveyDone ? (
-              <div className="mt-4 space-y-4">
-                <label className="block text-sm">
-                  <span className="font-medium">How was your stay?</span>
-                  <div className="mt-1 flex gap-2">
-                    {[1, 2, 3, 4, 5].map((n) => (
-                      <button
-                        key={n}
-                        onClick={() => setRating(n)}
-                        className={`h-10 w-10 rounded-xl border ${
-                          rating >= n
-                            ? "bg-emerald-100"
-                            : "hover:bg-emerald-50"
-                        }`}
-                      >
-                        {n}
-                      </button>
-                    ))}
-                  </div>
-                </label>
-                <label className="block text-sm">
-                  <span className="font-medium">Comments (optional)</span>
-                  <textarea
-                    value={comments}
-                    onChange={(e) => setComments(e.target.value)}
-                    className="mt-1 min-h-[80px] w-full rounded-xl border px-3 py-2"
-                    placeholder="Tell us what you loved and what we can improve"
-                  />
-                </label>
-                <label className="block text-sm">
-                  <span className="font-medium">Email (optional)</span>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="mt-1 w-full rounded-xl border px-3 py-2"
-                    placeholder="you@example.com"
-                  />
-                </label>
-                <div className="flex gap-3">
-                  <button
-                    onClick={submitSurvey}
-                    className="rounded-xl bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-700"
-                  >
-                    Submit
-                  </button>
-                  <button
-                    onClick={() => setSurveyOpen(false)}
-                    className="rounded-xl border px-4 py-2 font-semibold hover:bg-emerald-50"
-                  >
-                    Cancel
-                  </button>
-                </div>
-                <p className="text-xs text-slate-500">
-                  By submitting, you agree to be contacted about your stay if
-                  you provide an email.
-                </p>
-              </div>
-            ) : (
-              <div className="mt-4 space-y-4">
-                <p className="text-sm">
-                  Thank you! Scan this QR code to claim your discount.
-                </p>
-                <img
-                  src={qrUrl}
-                  alt="QR code for discount"
-                  className="mx-auto h-[240px] w-[240px] rounded-xl border"
-                />
-                <div className="text-center">
-                  <p className="text-sm">Discount code:</p>
-                  <p className="text-2xl font-extrabold tracking-wider">
-                    {discountCode}
-                  </p>
-                </div>
-                <div className="text-center">
-                  <button
-                    onClick={() => setSurveyOpen(false)}
-                    className="mt-2 rounded-xl border px-4 py-2 font-semibold hover:bg-emerald-50"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Lightbox for the belt */}
-      <Lightbox
-        open={lbOpen}
-        images={beltImages}
-        index={lbIndex}
-        onClose={() => setLbOpen(false)}
-        onPrev={prevLb}
-        onNext={nextLb}
-      />
 
       <footer className="py-10 text-center text-xs text-slate-500">
         © {new Date().getFullYear()} The Family Farm • All rights reserved
