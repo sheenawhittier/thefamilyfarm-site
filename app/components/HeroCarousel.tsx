@@ -8,14 +8,14 @@ type Slide = { src: string; alt: string; caption?: string };
 export default function HeroCarousel() {
   // app/components/HeroCarousel.tsx (only the slides array)
 const slides: Slide[] = useMemo(() => ([
-  { src: '/hero/Exterior East.jpg',              alt: 'Barn exterior, east side',  caption: 'The Family Farm · cozy farm stay' },
-  { src: '/hero/Exterior North.jpg',            alt: 'Barn exterior, north view', caption: 'Quiet mornings, big skies' },
-  { src: '/hero/Main entrance.jpg',             alt: 'Main entrance',             caption: 'Welcome to your getaway' },
-  { src: '/hero/North Exterior with Lawn.JPG',  alt: 'North lawn',                caption: 'Room to roam' },
-  { src: '/hero/Garden 4.JPG',                  alt: 'Garden path',               caption: 'Fresh air & garden walks' },
-  { src: '/hero/Great Room 3.jpg',              alt: 'Great room',                caption: 'Cozy spaces to gather' },
-  { src: '/hero/kitchen 2.jpg',                 alt: 'Kitchen',                   caption: 'Cook, chat, unwind' },
-  { src: '/hero/Sunflowers.jpg',                alt: 'Sunflowers',                caption: 'Golden-hour views' },
+  { src: '/hero/Exterior East.jpg',             alt: 'Barn exterior, east side',  caption: 'The Family Farm · cozy farm stay' },
+  { src: '/hero/Exterior North.jpg',           alt: 'Barn exterior, north view', caption: 'Quiet mornings, big skies' },
+  { src: '/hero/Main entrance.jpg',            alt: 'Main entrance',             caption: 'Welcome to your getaway' },
+  { src: '/hero/North Exterior with Lawn.JPG', alt: 'North lawn',                caption: 'Room to roam' },
+  { src: '/hero/Garden 4.JPG',                 alt: 'Garden path',               caption: 'Fresh air & garden walks' },
+  { src: '/hero/Great Room 3.jpg',             alt: 'Great room',                caption: 'Cozy spaces to gather' },
+  { src: '/hero/kitchen 2.jpg',                alt: 'Kitchen',                   caption: 'Cook, chat, unwind' },
+  { src: '/hero/Sunflowers.jpg',               alt: 'Sunflowers',                caption: 'Golden-hour views' },
 ]), []);
 
   const [index, setIndex] = useState(0);

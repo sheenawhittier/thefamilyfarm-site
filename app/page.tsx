@@ -2,16 +2,15 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
-import HeroCarousel from "./components/HeroCarousel";
+import { useState, useEffect } from "react";
+import InfiniteStrip from "./components/InfiniteStrip";
+import Lightbox from "./components/Lightbox";
 
 export default function FarmstaySite() {
   const airbnbListingId = "35318624";
 
   // ------- Utils -------
   const pad = (n: number) => String(n).padStart(2, "0");
-  const ymd = (d: Date) =>
-    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   const parse = (s: string) => {
     const [Y, M, D] = s.split("-").map((x) => parseInt(x, 10));
     return new Date(Y, M - 1, D);
@@ -19,31 +18,52 @@ export default function FarmstaySite() {
   const betweenInclusive = (d: Date, a: Date, b: Date) =>
     d.getTime() >= a.getTime() && d.getTime() <= b.getTime();
 
-  // ------- Airbnb URL helper -------
-  const buildAirbnbUrlWith = (s?: string, e?: string, g?: number): string => {
-    const base = `https://www.airbnb.com/rooms/${airbnbListingId}`;
-    if (!s || !e) return base;
-    const qs = new URLSearchParams({
-      check_in: s,
-      check_out: e,
-      adults: String(g ?? 1),
-      children: "0",
-      infants: "0",
-      pets: "0",
-    }).toString();
-    return `${base}?${qs}`;
-  };
-
-  // ------- Availability (demo) -------
-  const bookedRanges: Array<{ start: string; end: string }> = [
-    { start: "2025-09-18", end: "2025-09-20" },
-    { start: "2025-10-05", end: "2025-10-08" },
+  // ------- Slim belt images + lightbox -------
+  const beltImages = [
+    "/hero/Exterior East.jpg",
+    "/hero/Exterior North.jpg",
+    "/hero/Main entrance.jpg",
+    "/hero/North Exterior with Lawn.JPG",
+    "/hero/Garden 4.JPG",
+    "/hero/Great Room 3.jpg",
+    "/hero/kitchen 2.jpg",
+    "/hero/Sunflowers.jpg",
   ];
+  const [lbOpen, setLbOpen] = useState(false);
+  const [lbIndex, setLbIndex] = useState(0);
+  const openLb = (i: number) => {
+    setLbIndex(i);
+    setLbOpen(true);
+  };
+  const nextLb = () => setLbIndex((i) => (i + 1) % beltImages.length);
+  const prevLb = () =>
+    setLbIndex((i) => (i - 1 + beltImages.length) % beltImages.length);
+
+  // ------- Availability (Airbnb sync) -------
+  type Block = { start: string; end: string };
+  const [blocks, setBlocks] = useState<Block[]>([]);
+  const [blocksLoading, setBlocksLoading] = useState(true);
+  const [blocksError, setBlocksError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/airbnb")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!active) return;
+        setBlocks(Array.isArray(d.ranges) ? d.ranges : []);
+        setBlocksError(d.error ?? null);
+      })
+      .catch((e) => setBlocksError(String(e)))
+      .finally(() => active && setBlocksLoading(false));
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const isBooked = (dateStr: string) => {
     const d = parse(dateStr);
-    return bookedRanges.some((r) =>
-      betweenInclusive(d, parse(r.start), parse(r.end))
-    );
+    return blocks.some((r) => betweenInclusive(d, parse(r.start), parse(r.end)));
   };
 
   // ------- Calendar state -------
@@ -64,6 +84,7 @@ export default function FarmstaySite() {
           )
         )
       : 0;
+
   const nightlyRate = 165;
   const lodging = nights * nightlyRate;
 
@@ -92,6 +113,19 @@ export default function FarmstaySite() {
     }
   };
 
+  const buildAirbnbUrlWith = (s?: string, e?: string, g?: number): string => {
+    const base = `https://www.airbnb.com/rooms/${airbnbListingId}`;
+    if (!s || !e) return base;
+    const qs = new URLSearchParams({
+      check_in: s,
+      check_out: e,
+      adults: String(g ?? 1),
+      children: "0",
+      infants: "0",
+      pets: "0",
+    }).toString();
+    return `${base}?${qs}`;
+  };
   const buildAirbnbUrl = () => buildAirbnbUrlWith(startDate, endDate, guests);
 
   // ------- Page -------
@@ -99,32 +133,47 @@ export default function FarmstaySite() {
     <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white text-slate-800">
       {/* Header */}
       <header className="sticky top-0 z-30 backdrop-blur bg-white/70 border-b border-emerald-100">
-  <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-    <a href="/" className="flex items-center gap-3">
-      <div className="relative w-10 h-10">
-        <Image
-          src="/W-FamilyFarms-Enoch.jpg"   // file is in /public
-          alt="The Family Farm logo"
-          fill
-          sizes="40px"
-          style={{ objectFit: "cover", borderRadius: "0.5rem" }} // set to "9999px" for a circle
-          priority
-        />
-      </div>
-      <span className="font-semibold text-lg text-emerald-900">The Family Farm</span>
-    </a>
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+          <a href="/" className="flex items-center gap-3">
+            <div className="relative w-10 h-10">
+              <Image
+                src="/W-FamilyFarms-Enoch.jpg"
+                alt="The Family Farm logo"
+                fill
+                sizes="40px"
+                style={{ objectFit: "cover", borderRadius: "0.5rem" }}
+                priority
+              />
+            </div>
+            <span className="font-semibold text-lg text-emerald-900">
+              The Family Farm
+            </span>
+          </a>
 
-    <nav className="hidden md:flex items-center gap-6 text-sm">
-      <a href="#book" className="hover:text-emerald-700">Availability</a>
-      <a href="/experiences" className="hover:text-emerald-700">Experiences</a>
-      <a href="#contact" className="hover:text-emerald-700">Contact</a>
-    </nav>
-  </div>
-</header>
+          <nav className="hidden md:flex items-center gap-6 text-sm">
+            <a href="#book" className="hover:text-emerald-700">
+              Availability
+            </a>
+            <a href="/experiences" className="hover:text-emerald-700">
+              Experiences
+            </a>
+            <a href="#contact" className="hover:text-emerald-700">
+              Contact
+            </a>
+          </nav>
+        </div>
+      </header>
 
-
-      {/* NEW hero carousel */}
-      <HeroCarousel />
+      {/* Slim, slowly moving belt */}
+      <section className="w-full border-y border-emerald-100 bg-white/60 backdrop-blur">
+        <div className="max-w-6xl mx-auto px-4 py-3">
+          <InfiniteStrip
+            images={beltImages}
+            speedSeconds={60} // slow crawl; raise if you want even slower
+            onClick={(i: number) => openLb(i)}
+          />
+        </div>
+      </section>
 
       {/* Intro blurb */}
       <section className="max-w-6xl mx-auto px-4 pt-8">
@@ -134,8 +183,8 @@ export default function FarmstaySite() {
               A cozy farmstay in <span className="text-emerald-600">Enoch, Utah</span>
             </h1>
             <p className="mt-4 text-slate-600 text-lg">
-              Unplug on our family hobby farm—wake to sheep bleating and chickens clucking,
-              stroll the orchard, and sleep under endless skies.
+              Unplug on our family hobby farm—wake to sheep bleating and chickens
+              clucking, stroll the orchard, and sleep under endless skies.
             </p>
             <ul className="mt-4 text-slate-700 list-disc pl-5 space-y-1">
               <li>2-bedroom guesthouse · Wi-Fi · Full kitchen</li>
@@ -145,12 +194,11 @@ export default function FarmstaySite() {
           </div>
           <div>
             <img
-             src="/hero/Great Room 3.jpg"   
-             alt="Cozy great room at The Family Farm"
-             className="aspect-[4/3] w-full rounded-2xl object-cover shadow-lg"
-             loading="lazy"
+              src="/hero/Great Room 3.jpg"
+              alt="Cozy great room at The Family Farm"
+              className="aspect-[4/3] w-full rounded-2xl object-cover shadow-lg"
+              loading="lazy"
             />
-
           </div>
         </div>
       </section>
@@ -163,6 +211,13 @@ export default function FarmstaySite() {
             <div className="p-6 rounded-2xl bg-white shadow-sm border border-emerald-100">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold">Availability</h2>
+                <div className="text-xs text-slate-500">
+                  {blocksLoading
+                    ? "Syncing with Airbnb…"
+                    : blocksError
+                    ? "Sync error — showing blanks"
+                    : "Synced with Airbnb"}
+                </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => goMonth(-1)}
@@ -311,8 +366,8 @@ export default function FarmstaySite() {
               </div>
 
               <p className="mt-3 text-xs text-slate-500">
-                Bookings and payments for lodging are completed on Airbnb. Actual availability,
-                taxes, and fees are shown at Airbnb checkout.
+                Bookings and payments for lodging are completed on Airbnb. Actual
+                availability, taxes, and fees are shown at Airbnb checkout.
               </p>
             </div>
           </div>
@@ -333,24 +388,17 @@ export default function FarmstaySite() {
         </div>
       </section>
 
-      {/* Contact (no survey) */}
-      <section id="contact" className="max-w-6xl mx-auto mb-16 mt-12 px-4">
-        <div className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-bold">Get in touch</h2>
-          <div className="mt-3 grid gap-4 text-sm md:grid-cols-3">
-            <p>
-              <span className="font-semibold">Email:</span> oldbluefarm@gmail.com
-            </p>
-            <p>
-              <span className="font-semibold">Phone:</span> (435) 555-0123
-            </p>
-            <p>
-              <span className="font-semibold">Location:</span> Enoch, Utah
-            </p>
-          </div>
-        </div>
-      </section>
+      {/* Lightbox for the belt */}
+      <Lightbox
+        open={lbOpen}
+        images={beltImages}
+        index={lbIndex}
+        onClose={() => setLbOpen(false)}
+        onPrev={prevLb}
+        onNext={nextLb}
+      />
 
+      {/* Footer */}
       <footer className="py-10 text-center text-xs text-slate-500">
         © {new Date().getFullYear()} The Family Farm • All rights reserved
       </footer>
