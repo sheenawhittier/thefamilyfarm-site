@@ -2,9 +2,10 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect } from "react";
-import InfiniteStrip from "./components/InfiniteStrip";
-import Lightbox from "./components/Lightbox";
+import { useEffect, useState } from "react";
+import HeroCarousel from "./components/HeroCarousel";
+
+type Range = { start: string; end: string };
 
 export default function FarmstaySite() {
   const airbnbListingId = "35318624";
@@ -18,52 +19,54 @@ export default function FarmstaySite() {
   const betweenInclusive = (d: Date, a: Date, b: Date) =>
     d.getTime() >= a.getTime() && d.getTime() <= b.getTime();
 
-  // ------- Slim belt images + lightbox -------
-  const beltImages = [
-    "/hero/Exterior East.jpg",
-    "/hero/Exterior North.jpg",
-    "/hero/Main entrance.jpg",
-    "/hero/North Exterior with Lawn.JPG",
-    "/hero/Garden 4.JPG",
-    "/hero/Great Room 3.jpg",
-    "/hero/kitchen 2.jpg",
-    "/hero/Sunflowers.jpg",
-  ];
-  const [lbOpen, setLbOpen] = useState(false);
-  const [lbIndex, setLbIndex] = useState(0);
-  const openLb = (i: number) => {
-    setLbIndex(i);
-    setLbOpen(true);
-  };
-  const nextLb = () => setLbIndex((i) => (i + 1) % beltImages.length);
-  const prevLb = () =>
-    setLbIndex((i) => (i - 1 + beltImages.length) % beltImages.length);
-
-  // ------- Availability (Airbnb sync) -------
-  type Block = { start: string; end: string };
-  const [blocks, setBlocks] = useState<Block[]>([]);
-  const [blocksLoading, setBlocksLoading] = useState(true);
-  const [blocksError, setBlocksError] = useState<string | null>(null);
+  // ------- Sync Airbnb iCal via /api/airbnb -------
+  const [airbnbRanges, setAirbnbRanges] = useState<Range[]>([]);
+  const [airbnbLoading, setAirbnbLoading] = useState(true);
+  const [airbnbError, setAirbnbError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
   useEffect(() => {
-    let active = true;
-    fetch("/api/airbnb")
-      .then((r) => r.json())
-      .then((d) => {
-        if (!active) return;
-        setBlocks(Array.isArray(d.ranges) ? d.ranges : []);
-        setBlocksError(d.error ?? null);
-      })
-      .catch((e) => setBlocksError(String(e)))
-      .finally(() => active && setBlocksLoading(false));
-    return () => {
-      active = false;
-    };
+    async function load() {
+      try {
+        setAirbnbLoading(true);
+        const res = await fetch("/api/airbnb", { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        setAirbnbRanges(data.ranges ?? []);
+        setLastUpdated(data.lastUpdated ?? null);
+        setAirbnbError(null);
+      } catch (e: any) {
+        console.error("Failed to sync Airbnb calendar", e);
+        setAirbnbRanges([]); // show blanks but keep UI usable
+        setAirbnbError(e?.message ?? "Sync failed");
+      } finally {
+        setAirbnbLoading(false);
+      }
+    }
+    load();
   }, []);
 
   const isBooked = (dateStr: string) => {
+    if (!airbnbRanges.length) return false; // blanks when no data
     const d = parse(dateStr);
-    return blocks.some((r) => betweenInclusive(d, parse(r.start), parse(r.end)));
+    return airbnbRanges.some((r) =>
+      betweenInclusive(d, parse(r.start), parse(r.end))
+    );
+  };
+
+  // ------- Airbnb URL helper -------
+  const buildAirbnbUrlWith = (s?: string, e?: string, g?: number): string => {
+    const base = `https://www.airbnb.com/rooms/${airbnbListingId}`;
+    if (!s || !e) return base;
+    const qs = new URLSearchParams({
+      check_in: s,
+      check_out: e,
+      adults: String(g ?? 1),
+      children: "0",
+      infants: "0",
+      pets: "0",
+    }).toString();
+    return `${base}?${qs}`;
   };
 
   // ------- Calendar state -------
@@ -84,7 +87,6 @@ export default function FarmstaySite() {
           )
         )
       : 0;
-
   const nightlyRate = 165;
   const lodging = nights * nightlyRate;
 
@@ -113,26 +115,13 @@ export default function FarmstaySite() {
     }
   };
 
-  const buildAirbnbUrlWith = (s?: string, e?: string, g?: number): string => {
-    const base = `https://www.airbnb.com/rooms/${airbnbListingId}`;
-    if (!s || !e) return base;
-    const qs = new URLSearchParams({
-      check_in: s,
-      check_out: e,
-      adults: String(g ?? 1),
-      children: "0",
-      infants: "0",
-      pets: "0",
-    }).toString();
-    return `${base}?${qs}`;
-  };
   const buildAirbnbUrl = () => buildAirbnbUrlWith(startDate, endDate, guests);
 
   // ------- Page -------
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white text-slate-800">
+    <div className="grain min-h-screen bg-gradient-to-b from-[#F7F4EF] to-white text-slate-800">
       {/* Header */}
-      <header className="sticky top-0 z-30 backdrop-blur bg-white/70 border-b border-emerald-100">
+      <header className="sticky top-0 z-30 backdrop-blur bg-white/80 border-b border-[#E8E1D8]">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <a href="/" className="flex items-center gap-3">
             <div className="relative w-10 h-10">
@@ -141,52 +130,46 @@ export default function FarmstaySite() {
                 alt="The Family Farm logo"
                 fill
                 sizes="40px"
-                style={{ objectFit: "cover", borderRadius: "0.5rem" }}
+                style={{ objectFit: "cover", borderRadius: "0.75rem" }}
                 priority
               />
             </div>
-            <span className="font-semibold text-lg text-emerald-900">
+            <span className="font-serif font-semibold text-lg text-[#1F3A2E]">
               The Family Farm
             </span>
           </a>
 
           <nav className="hidden md:flex items-center gap-6 text-sm">
-            <a href="#book" className="hover:text-emerald-700">
+            <a href="#book" className="hover:text-[#B86A47]">
               Availability
             </a>
-            <a href="/experiences" className="hover:text-emerald-700">
+            <a href="/experiences" className="hover:text-[#B86A47]">
               Experiences
             </a>
-            <a href="#contact" className="hover:text-emerald-700">
+            <a href="#contact" className="hover:text-[#B86A47]">
               Contact
             </a>
           </nav>
         </div>
       </header>
 
-      {/* Slim, slowly moving belt */}
-      <section className="w-full border-y border-emerald-100 bg-white/60 backdrop-blur">
-        <div className="max-w-6xl mx-auto px-4 py-3">
-          <InfiniteStrip
-            images={beltImages}
-            speedSeconds={60} // slow crawl; raise if you want even slower
-            onClick={(i: number) => openLb(i)}
-          />
-        </div>
-      </section>
+      {/* Slim hero belt */}
+      <HeroCarousel />
 
       {/* Intro blurb */}
       <section className="max-w-6xl mx-auto px-4 pt-8">
         <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
           <div>
-            <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-emerald-900">
-              A cozy farmstay in <span className="text-emerald-600">Enoch, Utah</span>
+            <h1 className="font-serif text-4xl md:text-6xl font-bold text-[#1F3A2E] leading-tight">
+              A cozy farmstay in{" "}
+              <span className="text-[#B86A47]">Enoch, Utah</span>
             </h1>
-            <p className="mt-4 text-slate-600 text-lg">
-              Unplug on our family hobby farm—wake to sheep bleating and chickens
-              clucking, stroll the orchard, and sleep under endless skies.
+            <p className="mt-4 text-slate-700 text-lg">
+              Unplug on our family hobby farm—wake to sheep bleating and
+              chickens clucking, stroll the orchard, and sleep under endless
+              skies.
             </p>
-            <ul className="mt-4 text-slate-700 list-disc pl-5 space-y-1">
+            <ul className="mt-4 text-slate-800 list-disc pl-5 space-y-1 text-sm md:text-base">
               <li>2-bedroom guesthouse · Wi-Fi · Full kitchen</li>
               <li>Private patio + firepit · Free parking</li>
               <li>Minutes to Cedar City · Near Zion &amp; Bryce Canyon</li>
@@ -196,7 +179,7 @@ export default function FarmstaySite() {
             <img
               src="/hero/Great Room 3.jpg"
               alt="Cozy great room at The Family Farm"
-              className="aspect-[4/3] w-full rounded-2xl object-cover shadow-lg"
+              className="aspect-[4/3] w-full rounded-2xl border border-[#E8E1D8] object-cover shadow-[0_24px_60px_rgba(0,0,0,.08)]"
               loading="lazy"
             />
           </div>
@@ -208,32 +191,38 @@ export default function FarmstaySite() {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Calendar */}
           <div className="lg:col-span-2">
-            <div className="p-6 rounded-2xl bg-white shadow-sm border border-emerald-100">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold">Availability</h2>
-                <div className="text-xs text-slate-500">
-                  {blocksLoading
-                    ? "Syncing with Airbnb…"
-                    : blocksError
-                    ? "Sync error — showing blanks"
-                    : "Synced with Airbnb"}
+            <div className="p-6 rounded-2xl bg-white shadow-[0_12px_28px_rgba(0,0,0,.06)] border border-[#E8E1D8]">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="font-serif text-xl font-bold text-[#1F3A2E]">
+                    Availability
+                  </h2>
+                  <span className="text-xs text-slate-500">
+  {airbnbLoading && "Syncing with Airbnb…"}
+  {!airbnbLoading && airbnbError && `Sync error (${airbnbError}) — showing blanks`}
+  {!airbnbLoading && !airbnbError && lastUpdated && (
+    <>Synced ✅ · updated {new Date(lastUpdated).toLocaleString()}</>
+  )}
+  {!airbnbLoading && !airbnbError && !lastUpdated && "Synced ✅"}
+</span>
+
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => goMonth(-1)}
-                    className="px-2 py-1 rounded-lg border hover:bg-emerald-50"
+                    className="px-2 py-1 rounded-lg border border-[#E8E1D8] text-sm hover:bg-[#F7F4EF]"
                   >
                     Prev
                   </button>
-                  <div className="w-48 text-center text-sm font-medium">
-                    {new Date(viewYear, viewMonth, 1).toLocaleString(undefined, {
-                      month: "long",
-                      year: "numeric",
-                    })}
+                  <div className="w-40 text-center text-sm font-medium">
+                    {new Date(viewYear, viewMonth, 1).toLocaleString(
+                      undefined,
+                      { month: "long", year: "numeric" }
+                    )}
                   </div>
                   <button
                     onClick={() => goMonth(1)}
-                    className="px-2 py-1 rounded-lg border hover:bg-emerald-50"
+                    className="px-2 py-1 rounded-lg border border-[#E8E1D8] text-sm hover:bg-[#F7F4EF]"
                   >
                     Next
                   </button>
@@ -249,89 +238,103 @@ export default function FarmstaySite() {
               </div>
 
               <div className="grid grid-cols-7 gap-1">
-                {Array.from({ length: firstDow(viewYear, viewMonth) }).map((_, i) => (
-                  <div key={`pad-${i}`} className="h-12" />
-                ))}
-                {Array.from({ length: daysInMonth(viewYear, viewMonth) }).map((_, i) => {
-                  const day = i + 1;
-                  const dStr = `${viewYear}-${pad(viewMonth + 1)}-${pad(day)}`;
-                  const booked = isBooked(dStr);
-                  const selected = startDate && !endDate && dStr === startDate;
-                  const inSelRange =
-                    startDate &&
-                    endDate &&
-                    parse(dStr).getTime() >= parse(startDate).getTime() &&
-                    parse(dStr).getTime() <= parse(endDate).getTime();
+                {Array.from({ length: firstDow(viewYear, viewMonth) }).map(
+                  (_, i) => (
+                    <div key={`pad-${i}`} className="h-12" />
+                  )
+                )}
+                {Array.from({ length: daysInMonth(viewYear, viewMonth) }).map(
+                  (_, i) => {
+                    const day = i + 1;
+                    const dStr = `${viewYear}-${pad(
+                      viewMonth + 1
+                    )}-${pad(day)}`;
+                    const booked = isBooked(dStr);
+                    const selected =
+                      startDate && !endDate && dStr === startDate;
+                    const inSelRange =
+                      startDate &&
+                      endDate &&
+                      parse(dStr).getTime() >=
+                        parse(startDate).getTime() &&
+                      parse(dStr).getTime() <= parse(endDate).getTime();
 
-                  return (
-                    <button
-                      key={dStr}
-                      onClick={() => selectDay(viewYear, viewMonth, day)}
-                      className={[
-                        "h-12 rounded-lg border text-sm flex items-center justify-center",
-                        booked
-                          ? "bg-slate-100 text-slate-400 cursor-not-allowed line-through"
-                          : "hover:bg-emerald-50",
-                        selected ? "ring-2 ring-emerald-500" : "",
-                        inSelRange ? "bg-emerald-100" : "",
-                      ].join(" ")}
-                      disabled={booked}
-                    >
-                      {day}
-                    </button>
-                  );
-                })}
+                    return (
+                      <button
+                        key={dStr}
+                        onClick={() => selectDay(viewYear, viewMonth, day)}
+                        disabled={booked}
+                        className={[
+                          "h-12 rounded-lg border text-sm flex items-center justify-center transition",
+                          booked
+                            ? "bg-slate-100 text-slate-400 cursor-not-allowed line-through border-slate-200"
+                            : "hover:bg-[#F7F4EF] border-[#E8E1D8]",
+                          selected ? "ring-2 ring-[#1F3A2E]" : "",
+                          inSelRange ? "bg-[#E8E1D8]" : "",
+                        ].join(" ")}
+                      >
+                        {day}
+                      </button>
+                    );
+                  }
+                )}
               </div>
 
               <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
                 <span className="inline-flex items-center gap-2">
-                  <span className="h-3 w-3 rounded bg-emerald-100 border" /> Selected range
+                  <span className="h-3 w-3 rounded bg-[#E8E1D8] border border-[#C9BBA6]" />{" "}
+                  Selected range
                 </span>
                 <span className="inline-flex items-center gap-2">
-                  <span className="h-3 w-3 rounded bg-slate-100 border" /> Booked
+                  <span className="h-3 w-3 rounded bg-slate-100 border border-slate-200" />{" "}
+                  Booked
                 </span>
               </div>
 
-              <div className="mt-6 grid items-end gap-3 sm:grid-cols-3">
-                <label className="flex flex-col text-sm">
+              <div className="mt-6 grid items-end gap-3 sm:grid-cols-3 text-sm">
+                <label className="flex flex-col">
                   <span className="font-medium">Start</span>
                   <input
                     type="text"
                     value={startDate}
                     readOnly
                     placeholder="Select on calendar"
-                    className="mt-1 rounded-xl border px-3 py-2"
+                    className="mt-1 rounded-xl border border-[#E8E1D8] px-3 py-2"
                   />
                 </label>
-                <label className="flex flex-col text-sm">
+                <label className="flex flex-col">
                   <span className="font-medium">End</span>
                   <input
                     type="text"
                     value={endDate}
                     readOnly
                     placeholder="Select on calendar"
-                    className="mt-1 rounded-xl border px-3 py-2"
+                    className="mt-1 rounded-xl border border-[#E8E1D8] px-3 py-2"
                   />
                 </label>
-                <label className="flex flex-col text-sm">
+                <label className="flex flex-col">
                   <span className="font-medium">Guests</span>
                   <input
                     type="number"
                     min={1}
                     max={6}
                     value={guests}
-                    onChange={(e) => setGuests(parseInt(e.target.value || "1", 10))}
-                    className="mt-1 rounded-xl border px-3 py-2"
+                    onChange={(e) =>
+                      setGuests(parseInt(e.target.value || "1", 10))
+                    }
+                    className="mt-1 rounded-xl border border-[#E8E1D8] px-3 py-2"
                   />
                 </label>
               </div>
 
-              <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm">
-                <p className="font-medium">Estimated total</p>
+              <div className="mt-4 rounded-xl border border-[#E8E1D8] bg-[#F7F4EF] p-4 text-sm">
+                <p className="font-medium text-[#1F3A2E]">Estimated total</p>
                 <p className="mt-1 text-slate-700">
                   {nights} night{nights === 1 ? "" : "s"} × ${nightlyRate}
                 </p>
-                <p className="mt-2 text-2xl font-bold">${lodging.toFixed(2)}</p>
+                <p className="mt-2 text-2xl font-bold text-[#1F3A2E]">
+                  ${lodging.toFixed(2)}
+                </p>
               </div>
 
               <div className="mt-4 flex flex-wrap gap-3">
@@ -340,18 +343,21 @@ export default function FarmstaySite() {
                     setStartDate("");
                     setEndDate("");
                   }}
-                  className="rounded-xl border px-5 py-2 font-semibold hover:bg-emerald-50"
+                  className="rounded-xl border border-[#E8E1D8] px-5 py-2 font-semibold text-sm hover:bg-[#F7F4EF]"
                 >
                   Clear
                 </button>
                 <button
-                  onClick={() => window.open(buildAirbnbUrl(), "_blank", "noopener")}
+                  onClick={() =>
+                    window.open(buildAirbnbUrl(), "_blank", "noopener")
+                  }
                   disabled={!startDate || !endDate}
-                  className={`rounded-xl px-5 py-2 text-white font-semibold shadow ${
-                    !startDate || !endDate
-                      ? "cursor-not-allowed bg-slate-300"
-                      : "bg-emerald-600 hover:bg-emerald-700 active:scale-[.99]"
-                  }`}
+                  className={`rounded-xl px-5 py-2 text-sm font-semibold shadow
+                    ${
+                      !startDate || !endDate
+                        ? "cursor-not-allowed bg-slate-300 text-white"
+                        : "bg-[#1F3A2E] text-white hover:bg-[#183024] active:scale-[.99]"
+                    }`}
                 >
                   Book on Airbnb
                 </button>
@@ -359,28 +365,32 @@ export default function FarmstaySite() {
                   href={buildAirbnbUrl()}
                   target="_blank"
                   rel="noopener"
-                  className="rounded-xl border px-5 py-2 font-semibold hover:bg-emerald-50"
+                  className="rounded-xl border border-[#E8E1D8] px-5 py-2 text-sm font-semibold hover:bg-[#F7F4EF]"
                 >
                   View listing
                 </a>
               </div>
 
               <p className="mt-3 text-xs text-slate-500">
-                Bookings and payments for lodging are completed on Airbnb. Actual
-                availability, taxes, and fees are shown at Airbnb checkout.
+                Bookings and payments for lodging are completed on Airbnb.
+                Actual availability, taxes, and fees are shown at Airbnb
+                checkout.
               </p>
             </div>
           </div>
 
           {/* Sidebar */}
           <div className="lg:col-span-1">
-            <div className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm">
-              <h3 className="text-lg font-bold">Good to know</h3>
+            <div className="rounded-2xl border border-[#E8E1D8] bg-white p-6 shadow-[0_12px_28px_rgba(0,0,0,.06)]">
+              <h3 className="font-serif text-lg font-bold text-[#1F3A2E]">
+                Good to know
+              </h3>
               <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-700">
                 <li>Select start and end dates directly on the calendar.</li>
                 <li>Booked dates are grayed out.</li>
                 <li>
-                  Need help? Email <span className="font-medium">oldbluefarm@gmail.com</span>.
+                  Need help? Email{" "}
+                  <span className="font-medium">oldbluefarm@gmail.com</span>.
                 </li>
               </ul>
             </div>
@@ -388,20 +398,31 @@ export default function FarmstaySite() {
         </div>
       </section>
 
-      {/* Lightbox for the belt */}
-      <Lightbox
-        open={lbOpen}
-        images={beltImages}
-        index={lbIndex}
-        onClose={() => setLbOpen(false)}
-        onPrev={prevLb}
-        onNext={nextLb}
-      />
+      {/* Contact */}
+      <section id="contact" className="max-w-6xl mx-auto mb-16 mt-12 px-4">
+        <div className="rounded-2xl border border-[#E8E1D8] bg-white p-6 shadow-[0_12px_28px_rgba(0,0,0,.06)]">
+          <h2 className="font-serif text-xl font-bold text-[#1F3A2E]">
+            Get in touch
+          </h2>
+          <div className="mt-3 grid gap-4 text-sm md:grid-cols-3">
+            <p>
+              <span className="font-semibold">Email:</span>{" "}
+              oldbluefarm@gmail.com
+            </p>
+            <p>
+              <span className="font-semibold">Phone:</span> (435) 590-3138
+            </p>
+            <p>
+              <span className="font-semibold">Location:</span> Enoch, Utah
+            </p>
+          </div>
+        </div>
+      </section>
 
-      {/* Footer */}
       <footer className="py-10 text-center text-xs text-slate-500">
         © {new Date().getFullYear()} The Family Farm • All rights reserved
       </footer>
     </div>
   );
 }
+
