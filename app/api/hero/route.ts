@@ -1,83 +1,17 @@
-// app/api/airbnb/route.ts
-// app/api/airbnb/route.ts
 import { NextResponse } from "next/server";
-import * as ical from "node-ical";
 
-export const runtime = "nodejs";
-export const revalidate = 60 * 15; // re-use result for 15 minutes
+export const revalidate = 60 * 60; // refresh once per hour
 
 export async function GET() {
-  const url = process.env.AIRBNB_ICAL_URL;
-  if (!url) {
-    return NextResponse.json(
-      { error: "Missing AIRBNB_ICAL_URL" },
-      { status: 500 }
-    );
-  }
+  // Add/edit these to match what you have in /public/hero
+  // NOTE: file names with spaces are risky on the web. Prefer hyphens.
+  const items = [
+    { src: "/hero/great-room-3.jpg", alt: "Great room", href: "#book" },
+    { src: "/hero/kitchen.jpg", alt: "Kitchen", href: "#book" },
+    { src: "/hero/bedroom.jpg", alt: "Bedroom", href: "#book" },
+    { src: "/hero/farm.jpg", alt: "Farm views", href: "/experiences" },
+    { src: "/hero/firepit.jpg", alt: "Firepit", href: "/experiences" },
+  ];
 
-  try {
-    const data = await ical.async.fromURL(url);
-
-    type Range = { start: string; end: string };
-    const ranges: Range[] = [];
-
-    for (const key of Object.keys(data)) {
-      const ev: any = (data as any)[key];
-      if (!ev || ev.type !== "VEVENT") continue;
-      if (ev.status && String(ev.status).toUpperCase() === "CANCELLED") continue;
-
-      const start = toYMD(ev.start);
-
-      // DTEND in iCal is exclusive → subtract one day so the guest's last night is included
-      const endDate = new Date(ev.end);
-      endDate.setDate(endDate.getDate() - 1);
-      const end = toYMD(endDate);
-
-      ranges.push({ start, end });
-    }
-
-    // merge overlapping / touching ranges so we don't double mark dates
-    ranges.sort((a, b) => a.start.localeCompare(b.start));
-    const merged: Range[] = [];
-    for (const r of ranges) {
-      if (merged.length === 0) {
-        merged.push({ ...r });
-        continue;
-      }
-      const last = merged[merged.length - 1];
-      if (parseYMD(r.start) <= addDays(parseYMD(last.end), 1)) {
-        // overlaps or touches last range
-        if (parseYMD(r.end) > parseYMD(last.end)) {
-          last.end = r.end;
-        }
-      } else {
-        merged.push({ ...r });
-      }
-    }
-
-    return NextResponse.json({ ranges: merged });
-  } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message ?? "Failed to fetch iCal" },
-      { status: 500 }
-    );
-  }
-}
-
-// helpers
-
-function toYMD(d: Date) {
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
-
-function parseYMD(s: string) {
-  const [Y, M, D] = s.split("-").map((n) => parseInt(n, 10));
-  return new Date(Y, M - 1, D);
-}
-
-function addDays(d: Date, n: number) {
-  const x = new Date(d);
-  x.setDate(x.getDate() + n);
-  return x;
+  return NextResponse.json({ items });
 }
