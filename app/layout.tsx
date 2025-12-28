@@ -1,7 +1,9 @@
+// app/layout.tsx
+import type { Metadata } from "next";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/react";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "The Family Farm",
   description: "A cozy farmstay in Enoch, Utah.",
 };
